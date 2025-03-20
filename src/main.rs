@@ -2,42 +2,37 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use serde::{Serialize, Deserialize};
 use std::process::Command;
-use std::env; 
-use serde_json; 
+use std::env;
+use std::error::Error;
 
-const    help:    &str = "h";                                                                                      
-const verbose:    &str = "v";
-static v_mode:    bool = false;
-
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Message {
     msg_type: String,
     data: String,
+    args: Vec<String>,
 }
 
-async fn handle_peer(mut socket: TcpStream) {
-    let args: Vec<String> = env::args.collect(); 
-    
-    let mut buffer = [0; 1024];
-    // Чтение данных от пира
-    let n = socket.read(&mut buffer).await.unwrap();
-    let msg: Message = serde_json::from_slice(&buffer[..n]).unwrap();
-    println!("Получено: {:?}", msg);
-
-    // Отправка ответа
-    let response = Message {
-        msg_type: "response".to_string(),
-        data: "Message received".to_string(),
-    };
-    let response_data = serde_json::to_vec(&response).unwrap();
-    socket.write_all(&response_data).await.unwrap();
-    
-}
+const HELP: &str = "h";
+const VERBOSE: &str = "v";
+static mut VERBOSE_MODE: bool = false;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn Error>> {
+    let args: Vec<String> = env::args().collect();
+    if args.contains(&HELP.to_string()) {
+        print_help();
+        return Ok(());
+    }
+
+    unsafe { VERBOSE_MODE = args.contains(&VERBOSE.to_string()) };
+
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
-    println!("Сервер запущен на порту 8080");
+    println!("P2P node started on port 8080");
+
+    // Connect to other peers (example: 127.0.0.1:8081)
+    tokio::spawn(async move {
+        connect_to_peers().await;
+    });
 
     loop {
         let (socket, _) = listener.accept().await?;
@@ -47,50 +42,85 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-async fn process_response(msg: &str){
- struct ProceesedMessage {
-     msg_type: String,
-     data:     String,
-     args:     String
- }
-    println!("Получено сообщение, обработка...");
-    let str4process: Result<ProceesedMessage, serde_json::Error> = serde_json::from_str(msg);
- match ProceesedMessage {
-      Ok(p)  => println!("Parsed msg: {:?}", p),
-      Err(e) => println!("Error while parsing {}", e)
- }
+async fn connect_to_peers() {
 
- if ProceesedMessage.msg_type != "command" || ProceesedMessage.msg_type != "message" {
-  println!("Unknown mesage type error. Message type must be 'message' or 'command'");
- }
- 
- if ProceesedMessage.msg_type == "command" {
-     let output = Command::new(ProceesedMessage.data)
-         .arg(ProceesedMessage.arg)
-         .output()
-         .except("Не удалось выполнить команду!");
-     
-     if output.status.sucess() {
-         let mut out = String::from_utf8_lossy(&output.stdout);
-    }else {
-         let mut out = String::from_utf8_lossy(&output.stderr);
-  
-     } 
-     if stdout.is_empty(){
-         let response_out = Message {
-             msg_type: "output".to_string(),
-             data:  out.to_string()   
-         };
-     let output_remote = serde_json::to_vec(&response_out).unwrap();
-     socket.write_all(&response_out).await.unwrap();
-     println!("Command output sended to remote!");
+    let peers = vec!["127.0.0.1:8081", "127.0.0.1:8082"];
+    for peer in peers {
+        match TcpStream::connect(peer).await {
+            Ok(mut stream) => {
+                println!("Connected to peer: {}", peer);
+                let msg = Message {
+                    msg_type: "connect".to_string(),
+                    data: "Hello peer!".to_string(),
+                    args: vec![],
+                };
+                let data = serde_json::to_vec(&msg).unwrap();
+                stream.write_all(&data).await.unwrap();
+            }
+            Err(e) => println!("Failed to connect to {}: {}", peer, e),
+        }
     }
-  }
 }
 
-/*
-fn print_help(){
-    println!("Помощь");
-    println!("")
+async fn handle_peer(mut socket: TcpStream) {
+    let mut buffer = [0; 1024];
+    match socket.read(&mut buffer).await {
+        Ok(n) if n > 0 => {
+            match serde_json::from_slice::<Message>(&buffer[..n]) {
+                Ok(msg) => {
+                    if unsafe { VERBOSE_MODE } {
+                        println!("Received: {:?}", msg);
+                    }
+                    process_message(msg, &mut socket).await;
+                }
+                Err(e) => println!("Deserialization error: {}", e),
+            }
+        }
+        Ok(_) => (),
+        Err(e) => println!("Read error: {}", e),
+    }
 }
-*/ 
+
+async fn process_message(msg: Message, socket: &mut TcpStream) {
+    match msg.msg_type.as_str() {
+        "command" => {
+            let output = Command::new(&msg.data)
+                .args(&msg.args)
+                .output()
+                .expect("Failed to execute command");
+
+            let response = if output.status.success() {
+                String::from_utf8_lossy(&output.stdout).to_string()
+            } else {
+                String::from_utf8_lossy(&output.stderr).to_string()
+            };
+
+            let response_msg = Message {
+                msg_type: "response".to_string(),
+                data: response,
+                args: vec![],
+            };
+
+            if let Ok(data) = serde_json::to_vec(&response_msg) {
+                if let Err(e) = socket.write_all(&data).await {
+                    println!("Failed to send response: {}", e);
+                }
+            }
+        }
+        "message" => {
+            println!("Received message: {}", msg.data);
+        }
+        "connect" => {
+            println!("New peer connected: {}", msg.data);
+        }
+        _ => println!("Unknown message type: {}", msg.msg_type),
+    }
+}
+
+fn print_help() {
+    println!("P2P Node Help");
+    println!("Usage: cargo run [options]");
+    println!("Options:");
+    println!("  h    Show this help message");
+    println!("  v    Enable verbose mode");
+}
