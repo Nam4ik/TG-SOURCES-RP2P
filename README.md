@@ -48,6 +48,7 @@ Works only in wi-fi net. (Before compile edit var listener ip from `127.0.0.1:80
 - Args and settings
 - Remote shell
 
+**[How it works? 🇷🇺](https://t.me/ArcaneDevStudio/116)**
 
 <h3 align = "center">Bug report`s ⛔️ </h3>
 
