@@ -1,4 +1,4 @@
-<h1 align="center"> TG-SOURCES: RP2P </h1>
+<h1 align="center"> TG-SOURCES: RP2P 📺️ </h1>
 
 <div align = "center">
 <a href="https://t.me/ArcaneDevStudio" target="_blank" rel="noopener noreferrer">
@@ -18,9 +18,9 @@ p2p networking, change the branch in order to change the pseudo-p2p to a more ad
 bugs and unstable functions.
 </div>
 
-<h2 align = "center"> Using </h2> 
+<h2 align = "center"> Using 🖥️ </h2> 
 
-<h3> Installation </h3>
+<h3 align = "center"> Installation 🏗️ </h3>
 
 To install the project run this
 ```shell
@@ -40,8 +40,15 @@ nc 0.0.0.0 8080 #Edit to your IP
 ```
 Works only in wi-fi net. (Before compile edit var listener ip from `127.0.0.1:8080` to `0.0.0.0:8080`) 
 
+<h3 align = "center" >Next update 🧠</h3>
+
+**0.6 ver updates:**
+- Add the second network, not just client, p2p.
+- Add work with global network
+- Args and settings
+- Remote shell
 
 
-<h2>Bug report`s </h2>
+<h3 align = "center">Bug report`s ⛔️ </h3>
 
 
