@@ -13,8 +13,8 @@
 
 <div align = "center">
   
-**Porject created from my telegram channel.** This "network" was created to show the basic principles of network and <br>
-p2p networking, change the branch in order to change the pseudo-p2p to a more advanced version. The pre-release can have <br> 
+**Porject created from my telegram channel.** This "network" was created to show the basic principles of network and 
+p2p networking, change the branch in order to change the pseudo-p2p to a more advanced version. The pre-release can have
 bugs and unstable functions.
 </div>
 
